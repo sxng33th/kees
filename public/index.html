@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kees Hub | Configuration</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0d0d;
+            --surface: #171717;
+            --border: #333333;
+            --border-hover: #555555;
+            --text: #e5e5e5;
+            --text-muted: #888888;
+            --primary: #ffffff;
+            --primary-inv: #000000;
+            --danger: #ff4a4a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 5rem 2rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 960px;
+        }
+
+        header {
+            margin-bottom: 3rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1.5rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+            letter-spacing: -0.02em;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th,
+        td {
+            padding: 1.25rem 1rem;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        th {
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .provider-name {
+            font-weight: 600;
+            color: var(--primary);
+            width: 20%;
+        }
+
+        .status {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-active {
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .status-inactive {
+            color: var(--text-muted);
+        }
+
+        .config-cell {
+            width: 45%;
+        }
+
+        .key-input {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+            width: 100%;
+            max-width: 320px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .key-input:focus {
+            border-color: var(--border-hover);
+        }
+
+        .masked-key {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .action-cell {
+            text-align: right;
+            width: 15%;
+        }
+
+        .btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary);
+            color: var(--primary-inv);
+            border-color: var(--primary);
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 1rem 1.5rem;
+            border-radius: 4px;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 0.9rem;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border);
+            border-top-color: var(--text);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .btn-primary:hover .spinner {
+            border-color: rgba(0, 0, 0, 0.2);
+            border-top-color: var(--primary-inv);
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Your_kees</h1>
+        </header>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Provider</th>
+                        <th>Status</th>
+                        <th>Configuration</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="providers-tbody">
+                    <!-- Rows will be injected here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">Successfully updated</div>
+
+    <script>
+        const PROVIDERS = ['openrouter', 'openai', 'gemini', 'anthropic'];
+        let currentConfig = {};
+
+        async function fetchConfig() {
+            try {
+                const res = await fetch('/api/config');
+                currentConfig = await res.json();
+                renderProviders();
+            } catch (err) {
+                console.error('Failed to load config', err);
+            }
+        }
+
+        function maskKey(key) {
+            if (!key) return '';
+            if (key.length <= 12) return '********';
+            return key.substring(0, 6) + '...' + key.substring(key.length - 4);
+        }
+
+        function renderProviders() {
+            const tbody = document.getElementById('providers-tbody');
+            tbody.innerHTML = PROVIDERS.map(id => {
+                const config = currentConfig.providers?.[id];
+                const isActive = !!config;
+
+                return `
+                    <tr>
+                        <td class="provider-name">${id}</td>
+                        <td>
+                            <span class="status ${isActive ? 'status-active' : 'status-inactive'}">
+                                ${isActive ? 'Active' : 'Missing'}
+                            </span>
+                        </td>
+                        <td class="config-cell">
+                            ${isActive ?
+                        `<span class="masked-key">${maskKey(config.apiKey)}</span>` :
+                        `<input type="password" id="input-${id}" class="key-input" placeholder="Enter API key...">`
+                    }
+                        </td>
+                        <td class="action-cell">
+                            ${isActive ?
+                        `<button class="btn btn-danger" onclick="removeKey('${id}')">Remove</button>` :
+                        `<button class="btn btn-primary" id="btn-${id}" onclick="saveKey('${id}')">Save</button>`
+                    }
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function saveKey(id) {
+            const input = document.getElementById(`input-${id}`);
+            const btn = document.getElementById(`btn-${id}`);
+            const key = input.value.trim();
+
+            if (!key) {
+                input.focus();
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>';
+
+            try {
+                const res = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider: id, key })
+                });
+
+                if (res.ok) {
+                    showToast(`[${id}] Key saved successfully`);
+                    await fetchConfig();
+                } else {
+                    showToast(`[${id}] Failed to save key`);
+                }
+            } catch (err) {
+                console.error(err);
+                showToast(`Error saving ${id}`);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Save';
+                }
+            }
+        }
+
+        async function removeKey(id) {
+            if (!confirm(`Are you sure you want to remove the ${id} key?`)) return;
+
+            try {
+                const res = await fetch(`/api/config/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    showToast(`[${id}] Key removed`);
+                    await fetchConfig();
+                }
+            } catch (err) {
+                console.error(err);
+                showToast(`Error removing ${id}`);
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Initialize
+        fetchConfig();
+    </script>
+</body>
+
+</html>
