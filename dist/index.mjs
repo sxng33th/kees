@@ -1,6 +1,6 @@
 import {
   loadConfig
-} from "./chunk-EPQVCM2A.mjs";
+} from "./chunk-U4MGNZJZ.mjs";
 
 // src/core/providers/openrouter.ts
 var openrouterAdapter = {
@@ -163,40 +163,224 @@ var anthropicAdapter = {
   }
 };
 
+// src/core/providers/freemodel.ts
+var freemodelAdapter = {
+  id: "freemodel",
+  async generate(request, apiKey) {
+    const startTime = Date.now();
+    const model = request.model || "gpt-5.5";
+    const messages = [];
+    if (request.systemPrompt) {
+      messages.push({ role: "system", content: request.systemPrompt });
+    }
+    messages.push({ role: "user", content: request.prompt });
+    const response = await fetch("https://api.freemodel.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        messages
+      })
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Freemodel API error (${response.status}): ${errorText}`);
+    }
+    const data = await response.json();
+    const latencyMs = Date.now() - startTime;
+    const text = data.choices?.[0]?.message?.content || "";
+    return {
+      text,
+      provider: "freemodel",
+      model,
+      latencyMs
+    };
+  }
+};
+
+// src/core/providers/groq.ts
+var groqAdapter = {
+  id: "groq",
+  async generate(request, apiKey) {
+    const startTime = Date.now();
+    const model = request.model || "llama-3.1-8b-instant";
+    const messages = [];
+    if (request.systemPrompt) {
+      messages.push({ role: "system", content: request.systemPrompt });
+    }
+    messages.push({ role: "user", content: request.prompt });
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        messages
+      })
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Groq API error (${response.status}): ${errorText}`);
+    }
+    const data = await response.json();
+    const latencyMs = Date.now() - startTime;
+    const text = data.choices?.[0]?.message?.content || "";
+    return {
+      text,
+      provider: "groq",
+      model,
+      latencyMs
+    };
+  }
+};
+
+// src/core/providers/together.ts
+var togetherAdapter = {
+  id: "together",
+  async generate(request, apiKey) {
+    const startTime = Date.now();
+    const model = request.model || "mistralai/Mixtral-8x7B-Instruct-v0.1";
+    const messages = [];
+    if (request.systemPrompt) {
+      messages.push({ role: "system", content: request.systemPrompt });
+    }
+    messages.push({ role: "user", content: request.prompt });
+    const response = await fetch("https://api.together.xyz/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        messages
+      })
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Together AI API error (${response.status}): ${errorText}`);
+    }
+    const data = await response.json();
+    const latencyMs = Date.now() - startTime;
+    const text = data.choices?.[0]?.message?.content || "";
+    return {
+      text,
+      provider: "together",
+      model,
+      latencyMs
+    };
+  }
+};
+
+// src/core/providers/ollama.ts
+var ollamaAdapter = {
+  id: "ollama",
+  async generate(request, _apiKey) {
+    const startTime = Date.now();
+    const model = request.model || "llama3";
+    const messages = [];
+    if (request.systemPrompt) {
+      messages.push({ role: "system", content: request.systemPrompt });
+    }
+    messages.push({ role: "user", content: request.prompt });
+    const response = await fetch("http://localhost:11434/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        messages
+      })
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Ollama API error (${response.status}): Make sure Ollama is running locally. ${errorText}`);
+    }
+    const data = await response.json();
+    const latencyMs = Date.now() - startTime;
+    const text = data.choices?.[0]?.message?.content || "";
+    return {
+      text,
+      provider: "ollama",
+      model,
+      latencyMs
+    };
+  }
+};
+
 // src/core/router.ts
 var providers = {
   openrouter: openrouterAdapter,
   openai: openaiAdapter,
   gemini: geminiAdapter,
-  anthropic: anthropicAdapter
+  anthropic: anthropicAdapter,
+  freemodel: freemodelAdapter,
+  groq: groqAdapter,
+  together: togetherAdapter,
+  ollama: ollamaAdapter
 };
 async function generate(request) {
   const config = loadConfig();
   let providerId = request.provider;
+  let activeProviders = [];
   if (!providerId) {
-    const configuredProviders = Object.keys(config.providers).filter(
-      (key) => config.providers[key] && config.providers[key].apiKey
+    activeProviders = Object.keys(config.providers).filter(
+      (key) => config.providers[key] && config.providers[key].apiKey && config.providers[key].isActive !== false
     );
-    if (configuredProviders.length === 0) {
-      throw new Error("No providers are configured. Use 'kees set-key <provider> <API_KEY>' to set one.");
+    if (activeProviders.length === 0) {
+      throw new Error("No active providers are configured. Use the dashboard to add or enable one.");
     }
-    providerId = configuredProviders.includes("openrouter") ? "openrouter" : configuredProviders[0];
+    if (config.providerOrder && config.providerOrder.length > 0) {
+      activeProviders.sort((a, b) => {
+        const idxA = config.providerOrder.indexOf(a);
+        const idxB = config.providerOrder.indexOf(b);
+        if (idxA === -1 && idxB === -1) return 0;
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+      });
+      providerId = activeProviders[0];
+    } else {
+      providerId = activeProviders.includes("openrouter") ? "openrouter" : activeProviders[0];
+    }
+  } else {
+    const pConfig = config.providers[providerId];
+    if (!pConfig || !pConfig.apiKey) {
+      throw new Error(`Provider ${providerId} is not configured.`);
+    }
+    if (pConfig.isActive === false) {
+      throw new Error(`Provider ${providerId} is explicitly deactivated. Enable it to use it.`);
+    }
+    activeProviders = [providerId];
   }
-  const pid = providerId;
-  const providerConfig = config.providers[pid];
-  if (!providerConfig || !providerConfig.apiKey) {
-    throw new Error(`Provider ${pid} is not configured. Use 'kees set-key ${pid} <API_KEY>' to set it.`);
+  let lastError = null;
+  const safeProviderId = providerId;
+  const fallbackList = [safeProviderId, ...activeProviders.filter((p) => p !== safeProviderId)];
+  for (const pid of fallbackList) {
+    if (!pid) continue;
+    const providerConfig = config.providers[pid];
+    const adapter = providers[pid];
+    if (!adapter || !providerConfig || !providerConfig.apiKey) continue;
+    try {
+      return await adapter.generate(request, providerConfig.apiKey);
+    } catch (error) {
+      console.warn(`\u26A0\uFE0F [kees-hub] Failed to generate using ${pid}: ${error.message}`);
+      lastError = error;
+      if (request.provider) {
+        break;
+      }
+      if (fallbackList.length > 1) {
+        console.warn(`\u26A0\uFE0F [kees-hub] Attempting fallback...`);
+      }
+    }
   }
-  const adapter = providers[pid];
-  if (!adapter) {
-    throw new Error(`Provider adapter for ${pid} not found.`);
-  }
-  try {
-    return await adapter.generate(request, providerConfig.apiKey);
-  } catch (error) {
-    console.error(`Failed to generate using ${pid}:`, error);
-    throw error;
-  }
+  throw new Error(`All generation attempts failed. Last error: ${lastError?.message}`);
 }
 export {
   generate

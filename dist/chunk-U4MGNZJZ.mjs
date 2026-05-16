@@ -27,11 +27,30 @@ function saveConfig(config) {
 }
 function setProviderKey(provider, key) {
   const config = loadConfig();
-  if (["openrouter", "openai", "gemini", "anthropic"].includes(provider)) {
-    config.providers[provider] = { apiKey: key };
+  const allowed = ["openrouter", "openai", "gemini", "anthropic", "freemodel", "groq", "together", "ollama"];
+  if (allowed.includes(provider)) {
+    const current = config.providers[provider];
+    config.providers[provider] = {
+      apiKey: key,
+      isActive: current?.isActive !== void 0 ? current.isActive : true
+    };
   } else {
     throw new Error(`Unsupported provider: ${provider}`);
   }
+  saveConfig(config);
+}
+function setProviderStatus(provider, isActive) {
+  const config = loadConfig();
+  if (config.providers[provider]) {
+    config.providers[provider].isActive = isActive;
+    saveConfig(config);
+  } else {
+    throw new Error(`Cannot set status for unconfigured provider: ${provider}`);
+  }
+}
+function setProviderOrder(order) {
+  const config = loadConfig();
+  config.providerOrder = order;
   saveConfig(config);
 }
 function removeProviderKey(provider) {
@@ -46,6 +65,9 @@ function removeProviderKey(provider) {
 
 export {
   loadConfig,
+  saveConfig,
   setProviderKey,
+  setProviderStatus,
+  setProviderOrder,
   removeProviderKey
 };

@@ -5,13 +5,23 @@ import os from 'os';
 const CONFIG_DIR = path.join(os.homedir(), '.kees');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
+export interface ProviderConfig {
+  apiKey: string;
+  isActive?: boolean;
+}
+
 export interface KeesConfig {
+  providerOrder?: string[];
   providers: {
-    openrouter?: { apiKey: string };
-    openai?: { apiKey: string };
-    gemini?: { apiKey: string };
-    anthropic?: { apiKey: string };
-    [key: string]: { apiKey: string } | undefined;
+    openrouter?: ProviderConfig;
+    openai?: ProviderConfig;
+    gemini?: ProviderConfig;
+    anthropic?: ProviderConfig;
+    freemodel?: ProviderConfig;
+    groq?: ProviderConfig;
+    together?: ProviderConfig;
+    ollama?: ProviderConfig;
+    [key: string]: ProviderConfig | undefined;
   };
 }
 
@@ -41,11 +51,33 @@ export function saveConfig(config: KeesConfig) {
 
 export function setProviderKey(provider: string, key: string) {
   const config = loadConfig();
-  if (['openrouter', 'openai', 'gemini', 'anthropic'].includes(provider)) {
-    config.providers[provider] = { apiKey: key };
+  const allowed = ['openrouter', 'openai', 'gemini', 'anthropic', 'freemodel', 'groq', 'together', 'ollama'];
+  if (allowed.includes(provider)) {
+    // Preserve isActive status if it already exists, default to true for new keys
+    const current = config.providers[provider];
+    config.providers[provider] = { 
+      apiKey: key, 
+      isActive: current?.isActive !== undefined ? current.isActive : true 
+    };
   } else {
     throw new Error(`Unsupported provider: ${provider}`);
   }
+  saveConfig(config);
+}
+
+export function setProviderStatus(provider: string, isActive: boolean) {
+  const config = loadConfig();
+  if (config.providers[provider]) {
+    config.providers[provider]!.isActive = isActive;
+    saveConfig(config);
+  } else {
+    throw new Error(`Cannot set status for unconfigured provider: ${provider}`);
+  }
+}
+
+export function setProviderOrder(order: string[]) {
+  const config = loadConfig();
+  config.providerOrder = order;
   saveConfig(config);
 }
 

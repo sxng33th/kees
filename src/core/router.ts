@@ -3,6 +3,10 @@ import { openrouterAdapter } from './providers/openrouter';
 import { openaiAdapter } from './providers/openai';
 import { geminiAdapter } from './providers/gemini';
 import { anthropicAdapter } from './providers/anthropic';
+import { freemodelAdapter } from './providers/freemodel';
+import { groqAdapter } from './providers/groq';
+import { togetherAdapter } from './providers/together';
+import { ollamaAdapter } from './providers/ollama';
 import { GenerateRequest, GenerateResponse, ProviderAdapter } from './types';
 
 const providers: Record<string, ProviderAdapter> = {
@@ -10,6 +14,10 @@ const providers: Record<string, ProviderAdapter> = {
   openai: openaiAdapter,
   gemini: geminiAdapter,
   anthropic: anthropicAdapter,
+  freemodel: freemodelAdapter,
+  groq: groqAdapter,
+  together: togetherAdapter,
+  ollama: ollamaAdapter,
 };
 
 export async function generate(request: GenerateRequest): Promise<GenerateResponse> {
@@ -17,34 +25,73 @@ export async function generate(request: GenerateRequest): Promise<GenerateRespon
   
   // Dynamic routing: use requested provider, or pick a configured default
   let providerId = request.provider;
+  let activeProviders: string[] = [];
   
   if (!providerId) {
-    const configuredProviders = Object.keys(config.providers).filter(
-      (key) => config.providers[key] && config.providers[key]!.apiKey
+    activeProviders = Object.keys(config.providers).filter(
+      (key) => config.providers[key] && config.providers[key]!.apiKey && config.providers[key]!.isActive !== false
     );
-    if (configuredProviders.length === 0) {
-      throw new Error("No providers are configured. Use 'kees set-key <provider> <API_KEY>' to set one.");
+    if (activeProviders.length === 0) {
+      throw new Error("No active providers are configured. Use the dashboard to add or enable one.");
     }
-    // Prefer openrouter as default if available
-    providerId = configuredProviders.includes('openrouter') ? 'openrouter' : configuredProviders[0];
+    
+    // Sort by user's custom priority order if it exists
+    if (config.providerOrder && config.providerOrder.length > 0) {
+      activeProviders.sort((a, b) => {
+        const idxA = config.providerOrder!.indexOf(a);
+        const idxB = config.providerOrder!.indexOf(b);
+        if (idxA === -1 && idxB === -1) return 0;
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+      });
+      providerId = activeProviders[0];
+    } else {
+      // Default fallback if no order is set
+      providerId = activeProviders.includes('openrouter') ? 'openrouter' : activeProviders[0];
+    }
+  } else {
+    // Explicit provider requested
+    const pConfig = config.providers[providerId];
+    if (!pConfig || !pConfig.apiKey) {
+      throw new Error(`Provider ${providerId} is not configured.`);
+    }
+    if (pConfig.isActive === false) {
+      throw new Error(`Provider ${providerId} is explicitly deactivated. Enable it to use it.`);
+    }
+    activeProviders = [providerId]; // Only allow this one to be tried since it was explicitly requested
   }
 
-  const pid = providerId as string;
-  const providerConfig = config.providers[pid];
+  // Fallback Routing Engine
+  let lastError: Error | null = null;
+  const safeProviderId = providerId as string;
   
-  if (!providerConfig || !providerConfig.apiKey) {
-    throw new Error(`Provider ${pid} is not configured. Use 'kees set-key ${pid} <API_KEY>' to set it.`);
+  // Create a priority list: the chosen provider first, then the remaining active ones
+  const fallbackList = [safeProviderId, ...activeProviders.filter(p => p !== safeProviderId)];
+
+  for (const pid of fallbackList) {
+    if (!pid) continue;
+    const providerConfig = config.providers[pid];
+    const adapter = providers[pid];
+    
+    if (!adapter || !providerConfig || !providerConfig.apiKey) continue;
+
+    try {
+      return await adapter.generate(request, providerConfig.apiKey);
+    } catch (error: any) {
+      console.warn(`⚠️ [kees-hub] Failed to generate using ${pid}: ${error.message}`);
+      lastError = error;
+      
+      // If the user explicitly requested this provider, don't fall back to others
+      if (request.provider) {
+        break;
+      }
+      
+      if (fallbackList.length > 1) {
+          console.warn(`⚠️ [kees-hub] Attempting fallback...`);
+      }
+    }
   }
 
-  const adapter = providers[pid];
-  if (!adapter) {
-    throw new Error(`Provider adapter for ${pid} not found.`);
-  }
-
-  try {
-    return await adapter.generate(request, providerConfig.apiKey);
-  } catch (error) {
-    console.error(`Failed to generate using ${pid}:`, error);
-    throw error;
-  }
+  throw new Error(`All generation attempts failed. Last error: ${lastError?.message}`);
 }

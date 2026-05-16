@@ -37,6 +37,32 @@ export async function startServer(port = 3000) {
     }
   });
 
+  fastify.patch('/api/config/:provider/status', async (request, reply) => {
+    const { provider } = request.params as { provider: string };
+    const { isActive } = request.body as { isActive: boolean };
+    try {
+      const { setProviderStatus } = await import('../core/config');
+      setProviderStatus(provider, isActive);
+      return { success: true };
+    } catch (error: any) {
+      return reply.code(400).send({ error: error.message });
+    }
+  });
+
+  fastify.put('/api/config/order', async (request, reply) => {
+    const { order } = request.body as { order: string[] };
+    if (!Array.isArray(order)) {
+      return reply.code(400).send({ error: 'Order must be an array of strings' });
+    }
+    try {
+      const { setProviderOrder } = await import('../core/config');
+      setProviderOrder(order);
+      return { success: true };
+    } catch (error: any) {
+      return reply.code(400).send({ error: error.message });
+    }
+  });
+
   try {
     await fastify.listen({ port, host: '0.0.0.0' });
     const url = `http://localhost:${port}`;

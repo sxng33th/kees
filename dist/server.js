@@ -5,6 +5,9 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -27,25 +30,16 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// src/server/index.ts
-var server_exports = {};
-__export(server_exports, {
-  startServer: () => startServer
-});
-module.exports = __toCommonJS(server_exports);
-var import_fastify = __toESM(require("fastify"));
-var import_static = __toESM(require("@fastify/static"));
-var import_path2 = __toESM(require("path"));
-
 // src/core/config.ts
-var import_fs = __toESM(require("fs"));
-var import_path = __toESM(require("path"));
-var import_os = __toESM(require("os"));
-var CONFIG_DIR = import_path.default.join(import_os.default.homedir(), ".kees");
-var CONFIG_FILE = import_path.default.join(CONFIG_DIR, "config.json");
-var DEFAULT_CONFIG = {
-  providers: {}
-};
+var config_exports = {};
+__export(config_exports, {
+  loadConfig: () => loadConfig,
+  removeProviderKey: () => removeProviderKey,
+  saveConfig: () => saveConfig,
+  setProviderKey: () => setProviderKey,
+  setProviderOrder: () => setProviderOrder,
+  setProviderStatus: () => setProviderStatus
+});
 function loadConfig() {
   if (!import_fs.default.existsSync(CONFIG_FILE)) {
     return DEFAULT_CONFIG;
@@ -66,11 +60,30 @@ function saveConfig(config) {
 }
 function setProviderKey(provider, key) {
   const config = loadConfig();
-  if (["openrouter", "openai", "gemini", "anthropic"].includes(provider)) {
-    config.providers[provider] = { apiKey: key };
+  const allowed = ["openrouter", "openai", "gemini", "anthropic", "freemodel", "groq", "together", "ollama"];
+  if (allowed.includes(provider)) {
+    const current = config.providers[provider];
+    config.providers[provider] = {
+      apiKey: key,
+      isActive: current?.isActive !== void 0 ? current.isActive : true
+    };
   } else {
     throw new Error(`Unsupported provider: ${provider}`);
   }
+  saveConfig(config);
+}
+function setProviderStatus(provider, isActive) {
+  const config = loadConfig();
+  if (config.providers[provider]) {
+    config.providers[provider].isActive = isActive;
+    saveConfig(config);
+  } else {
+    throw new Error(`Cannot set status for unconfigured provider: ${provider}`);
+  }
+}
+function setProviderOrder(order) {
+  const config = loadConfig();
+  config.providerOrder = order;
   saveConfig(config);
 }
 function removeProviderKey(provider) {
@@ -82,8 +95,31 @@ function removeProviderKey(provider) {
     throw new Error(`Provider ${provider} is not configured.`);
   }
 }
+var import_fs, import_path, import_os, CONFIG_DIR, CONFIG_FILE, DEFAULT_CONFIG;
+var init_config = __esm({
+  "src/core/config.ts"() {
+    "use strict";
+    import_fs = __toESM(require("fs"));
+    import_path = __toESM(require("path"));
+    import_os = __toESM(require("os"));
+    CONFIG_DIR = import_path.default.join(import_os.default.homedir(), ".kees");
+    CONFIG_FILE = import_path.default.join(CONFIG_DIR, "config.json");
+    DEFAULT_CONFIG = {
+      providers: {}
+    };
+  }
+});
 
 // src/server/index.ts
+var server_exports = {};
+__export(server_exports, {
+  startServer: () => startServer
+});
+module.exports = __toCommonJS(server_exports);
+var import_fastify = __toESM(require("fastify"));
+var import_static = __toESM(require("@fastify/static"));
+var import_path2 = __toESM(require("path"));
+init_config();
 var import_open = __toESM(require("open"));
 var fastify = (0, import_fastify.default)({ logger: false });
 async function startServer(port = 3e3) {
@@ -109,6 +145,30 @@ async function startServer(port = 3e3) {
       return { success: true };
     } catch (error) {
       return reply.code(404).send({ error: error.message });
+    }
+  });
+  fastify.patch("/api/config/:provider/status", async (request, reply) => {
+    const { provider } = request.params;
+    const { isActive } = request.body;
+    try {
+      const { setProviderStatus: setProviderStatus2 } = await Promise.resolve().then(() => (init_config(), config_exports));
+      setProviderStatus2(provider, isActive);
+      return { success: true };
+    } catch (error) {
+      return reply.code(400).send({ error: error.message });
+    }
+  });
+  fastify.put("/api/config/order", async (request, reply) => {
+    const { order } = request.body;
+    if (!Array.isArray(order)) {
+      return reply.code(400).send({ error: "Order must be an array of strings" });
+    }
+    try {
+      const { setProviderOrder: setProviderOrder2 } = await Promise.resolve().then(() => (init_config(), config_exports));
+      setProviderOrder2(order);
+      return { success: true };
+    } catch (error) {
+      return reply.code(400).send({ error: error.message });
     }
   });
   try {

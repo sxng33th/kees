@@ -1,6 +1,6 @@
 {
   "name": "kees-hub",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Personal AI Infrastructure Layer — A unified SDK & Dashboard for OpenAI, Gemini, Anthropic, and OpenRouter.",
   "files": [
     "dist",
@@ -16,6 +16,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "test:manual": "tsx scripts/test-manual.ts",
+    "test:all": "tsx scripts/test-all.ts",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
